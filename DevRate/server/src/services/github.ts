@@ -76,6 +76,80 @@ export const fetchRecentPRs = async (username: string): Promise<PRStats[]> => {
   }));
 };
 
+// Fetch detailed PR information with reviews for AI analysis
+export const fetchPRDetailsForAI = async (prs: PRStats[]): Promise<string[]> => {
+  // Get top 5 merged PRs for analysis
+  const topPRs = prs
+    .filter(pr => pr.merged)
+    .sort((a, b) => new Date(b.mergedAt || 0).getTime() - new Date(a.mergedAt || 0).getTime())
+    .slice(0, 5);
+  
+  const prDetails: string[] = [];
+  
+  for (const pr of topPRs) {
+    try {
+      // Extract owner and repo from repoName
+      const [owner, repo] = pr.repoName.split('/');
+      
+      console.log(`Fetching details for PR #${pr.number} in ${pr.repoName}...`);
+      
+      // Fetch PR details
+      const { data: prData } = await octokit.rest.pulls.get({
+        owner,
+        repo,
+        pull_number: pr.number
+      });
+      
+      // Fetch reviews
+      const { data: reviews } = await octokit.rest.pulls.listReviews({
+        owner,
+        repo,
+        pull_number: pr.number
+      });
+      
+      console.log(`  Reviews found: ${reviews.length}`);
+      
+      // Fetch review comments
+      const { data: comments } = await octokit.rest.pulls.listReviewComments({
+        owner,
+        repo,
+        pull_number: pr.number
+      });
+      
+      console.log(`  Review comments found: ${comments.length}`);
+      
+      let prSummary = `PR #${pr.number}: ${pr.title}\n`;
+      prSummary += `Repo: ${pr.repoName} | Status: MERGED\n`;
+      prSummary += `Description: ${prData.body?.substring(0, 200) || 'No description'}\n`;
+      prSummary += `Changes: +${prData.additions} -${prData.deletions} lines\n`;
+      
+      if (reviews.length > 0) {
+        prSummary += `Reviews (${reviews.length}): ${reviews.map((r: any) => r.state).join(', ')}\n`;
+        reviews.forEach((r: any) => {
+          if (r.body) {
+            prSummary += `  Review by ${r.user?.login}: ${r.body.substring(0, 150)}...\n`;
+          }
+        });
+      }
+      
+      if (comments.length > 0) {
+        prSummary += `Review Comments (${comments.length}): \n`;
+        comments.slice(0, 3).forEach((c: any) => {
+          prSummary += `  - ${c.user?.login}: ${c.body?.substring(0, 100)}...\n`;
+        });
+      }
+      
+      prDetails.push(prSummary);
+    } catch (error: any) {
+      // If detailed fetch fails, use basic info
+      logger.warn(`Could not fetch details for PR #${pr.number}: ${error.message}`);
+      prDetails.push(`PR #${pr.number}: ${pr.title} (${pr.repoName}) - MERGED`);
+    }
+  }
+  
+  return prDetails;
+};
+
 // Helper: Issues Solved
 export const fetchResolvedIssues = async (username: string): Promise<IssueStats[]> => {
    // "involves:username" or "assignee:username"? 
@@ -100,17 +174,22 @@ export const fetchResolvedIssues = async (username: string): Promise<IssueStats[
 
 // Helper: Fetch Recent Commits (for Quality Analysis)
 export const fetchRecentCommits = async (username: string): Promise<CommitInfo[]> => {
-    // This is expensive per repo. We will sample the "Events" API instead.
-    const { data } = await octokit.rest.activity.listPublicEventsForUser({
+    logger.info(`Fetching recent commits for ${username}`);
+    
+    // First try Events API (faster, last 90 days)
+    const { data: events } = await octokit.rest.activity.listPublicEventsForUser({
         username,
         per_page: 50
     });
 
+    console.log(`DEBUG: Total events fetched: ${events.length}`);
+    const pushEvents = events.filter((e: any) => e.type === 'PushEvent');
+    console.log(`DEBUG: Push events found: ${pushEvents.length}`);
+
     const commits: CommitInfo[] = [];
 
-    data.forEach((event: any) => {
+    events.forEach((event: any) => {
         if (event.type === 'PushEvent' && event.payload?.commits) {
-             // @ts-ignore
              event.payload.commits.forEach((commit: any) => {
                  commits.push({
                      message: commit.message,
@@ -120,6 +199,59 @@ export const fetchRecentCommits = async (username: string): Promise<CommitInfo[]
              });
         }
     });
+    
+    console.log(`DEBUG: Commits from events: ${commits.length}`);
+    
+    // If we have enough commits from events, return them
+    if (commits.length >= 20) {
+        return commits.slice(0, 50);
+    }
+    
+    // Otherwise, fetch from repositories directly
+    console.log(`DEBUG: Not enough commits from events, fetching from repos...`);
+    
+    try {
+        // Get user's repositories
+        const { data: repos } = await octokit.rest.repos.listForUser({
+            username,
+            sort: 'pushed',
+            per_page: 10, // Top 10 most recently pushed repos
+            type: 'owner'
+        });
+        
+        console.log(`DEBUG: Fetching commits from ${repos.length} repos...`);
+        
+        // Fetch commits from each repo
+        for (const repo of repos) {
+            if (commits.length >= 50) break;
+            
+            try {
+                const { data: repoCommits } = await octokit.rest.repos.listCommits({
+                    owner: username,
+                    repo: repo.name,
+                    author: username,
+                    per_page: 10
+                });
+                
+                repoCommits.forEach((commit: any) => {
+                    if (commits.length < 50) {
+                        commits.push({
+                            message: commit.commit.message,
+                            date: commit.commit.author.date,
+                            repoName: `${username}/${repo.name}`
+                        });
+                    }
+                });
+            } catch (error) {
+                // Skip repos we can't access
+                console.log(`DEBUG: Couldn't fetch commits from ${repo.name}`);
+            }
+        }
+        
+        console.log(`DEBUG: Total commits collected: ${commits.length}`);
+    } catch (error) {
+        console.warn(`Failed to fetch commits from repos: ${error}`);
+    }
 
     return commits;
 };

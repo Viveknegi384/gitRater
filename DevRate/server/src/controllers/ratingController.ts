@@ -112,14 +112,20 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
         ]);
 
         console.log(`Fetched ${repos.length} repos, ${totalCommits} total commits.`);
+        console.log(`DEBUG: Recent commits fetched: ${recentCommits.length}`);
+        console.log(`DEBUG: PRs fetched: ${prs.length} (merged: ${prs.filter(p => p.merged).length})`);
 
-        // 2. Prepare Data for AI
-        const prSummaries = prs.slice(0, 5).map(p => `PR #${p.number}: ${p.title} (Merged: ${p.merged})`);
+        // 2. Prepare Data for AI - Fetch detailed PR info with reviews
+        console.log("Fetching detailed PR information with reviews...");
+        const prDetailsWithReviews = await github.fetchPRDetailsForAI(prs);
+        console.log(`DEBUG: PR details prepared for AI: ${prDetailsWithReviews.length}`);
+        
         const commitLogs = recentCommits.slice(0, 20).map(c => `${c.date}: ${c.message}`);
+        console.log(`DEBUG: Commit logs prepared for AI: ${commitLogs.length}`);
 
         // 3. Run AI Analysis
-        console.log("Running AI Analysis...");
-        const aiResult = await ai.analyzeProfile(username, prSummaries, commitLogs);
+        console.log("Running AI Analysis with PR reviews and commit quality...");
+        const aiResult = await ai.analyzeProfile(username, prDetailsWithReviews, commitLogs);
 
         // 4. Calculate Score
         console.log("Calculating Score...");

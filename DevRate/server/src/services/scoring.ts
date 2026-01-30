@@ -34,82 +34,98 @@ export const calculateScore = (
     aiCommitScore: number
 ): ScoreBreakdown => {
 
+    console.log("\n=== SCORING CALCULATION DEBUG ===\n");
+
     // --- A. Profile Health (20%) ---
+    console.log("📊 A. PROFILE HEALTH (Max 20 points)");
+    
     // 1. Followers (5pts)
-    const followerScore = logScale(profile.followers, 1000) * 0.05; 
+    const followerScore = logScale(profile.followers, 1000) * 0.05;
+    console.log(`  1. Followers: ${profile.followers}`);
+    console.log(`     Formula: logScale(${profile.followers}, 1000) × 0.05`);
+    console.log(`     Score: ${followerScore.toFixed(4)} / 5`);
 
     // 2. Organization Count (5pts)
-    const orgScore = Math.min(profile.orgCount, 5); 
+    const orgScore = Math.min(profile.orgCount, 5);
+    console.log(`  2. Organizations: ${profile.orgCount}`);
+    console.log(`     Formula: min(${profile.orgCount}, 5)`);
+    console.log(`     Score: ${orgScore.toFixed(4)} / 5`);
 
     // 3. Volume (10pts)
-    // Using REAL total commits now. 
-    // 100 commits -> log10(100)=2. log10(10000)=4. Score = 2/4 * 10 = 5 pts.
-    // 1000 commits -> 3/4 * 10 = 7.5 pts.
-    // 10000 commits -> 10 pts.
     const volumeScore = logScale(totalCommits, 10000) * 0.10;
+    console.log(`  3. Commit Volume: ${totalCommits}`);
+    console.log(`     Formula: logScale(${totalCommits}, 10000) × 0.10`);
+    console.log(`     Score: ${volumeScore.toFixed(4)} / 10`);
     
     // Total Health Score (Sum of sub-scores, Max 20)
     const healthPoints = followerScore + orgScore + volumeScore;
+    console.log(`  ➜ HEALTH TOTAL: ${healthPoints.toFixed(4)} / 20\n`);
     
     // --- B. Engineering Quality (80%) ---
+    console.log("⚙️  B. ENGINEERING QUALITY (Max 100 points, scaled to 80)");
     
     // 1. Acceptance Rate (35 points)
     const closedPRs = prs.filter(p => p.state === 'closed');
     const mergedPRs = closedPRs.filter(p => p.merged);
     const acceptanceRate = closedPRs.length > 0 ? (mergedPRs.length / closedPRs.length) : 0;
     const acceptancePoints = acceptanceRate * 35;
+    console.log(`  1. PR Acceptance Rate:`);
+    console.log(`     Closed PRs: ${closedPRs.length} | Merged: ${mergedPRs.length}`);
+    console.log(`     Rate: ${(acceptanceRate * 100).toFixed(2)}%`);
+    console.log(`     Formula: (${mergedPRs.length} / ${closedPRs.length}) × 35`);
+    console.log(`     Score: ${acceptancePoints.toFixed(4)} / 35`);
 
     // 2. Impact Score (35 points)
-    // Sum of Log(Stars) for repos we contributed PRs to.
     const totalStars = repos.reduce((acc, r) => acc + r.stars, 0);
-    const impactPoints = logScale(totalStars, 5000) * 0.35; // Target 5k stars for max points.
+    const impactPoints = logScale(totalStars, 5000) * 0.35;
+    console.log(`  2. Impact (Stars):`);
+    console.log(`     Total Stars: ${totalStars} (from ${repos.length} repos)`);
+    console.log(`     Formula: logScale(${totalStars}, 5000) × 35`);
+    console.log(`     Score: ${impactPoints.toFixed(4)} / 35`);
 
     // 3. Issues Solved (15 points)
-    // Target: 50 issues closed
-    const issuesPoints = logScale(issues.filter(i => i.state === 'closed').length, 50) * 0.15;
+    const closedIssues = issues.filter(i => i.state === 'closed').length;
+    const issuesPoints = logScale(closedIssues, 50) * 0.15;
+    console.log(`  3. Issues Solved:`);
+    console.log(`     Closed Issues: ${closedIssues}`);
+    console.log(`     Formula: logScale(${closedIssues}, 50) × 15`);
+    console.log(`     Score: ${issuesPoints.toFixed(4)} / 15`);
 
     // 4. Commit Quality (15 points) - AI ANALYZED
-    // We use the score directly from Gemini (0-15)
-    // It checks for standards (feat: fix:) and atomicity.
     const atomicityPoints = aiCommitScore;
+    console.log(`  4. Commit Quality (AI):`);
+    console.log(`     AI Commit Score: ${aiCommitScore}`);
+    console.log(`     Score: ${atomicityPoints.toFixed(4)} / 15`);
     
     // Total Engineering Score
     const qualityPoints = acceptancePoints + impactPoints + issuesPoints + atomicityPoints;
+    console.log(`  ➜ QUALITY SUBTOTAL: ${qualityPoints.toFixed(4)} / 100`);
+    
+    const finalQuality = qualityPoints * 0.8;
+    console.log(`  ➜ QUALITY SCALED (×0.8): ${finalQuality.toFixed(4)} / 80\n`);
 
     // --- Final Calculation ---
-    // Health (Max 20) + Quality (Max 100 -> Scaled to 80?) 
-    // Wait, the weights were percentages of the FINAL score.
-    // Health = 20 pts max.
-    // Quality = 80 pts max.
-    
-    // Re-sum points:
-    // Health: 5 (Followers) + 5 (Repos) + 10 (Volume) = 20.
-    // Quality: 35 (Accept) + 35 (Impact) + 15 (Issues) + 15 (Commits) = 100.
-    // Wait, 35+35+15+15 = 100. 
-    // So Quality needs to be scaled by 0.8? Or did we mean 35% of the TOTAL?
-    
-    // Implementation Plan said:
-    // A. Profile Health (20%)
-    // B. Engineering Quality (80%) -> items inside sum to 100% of this section?
-    // Let's assume the breakdown inside Quality sums to 100, then we multiply by 0.8.
-    
-    const finalQuality = qualityPoints * 0.8; 
-    
+    console.log("🎯 FINAL CALCULATION:");
     let totalScore = healthPoints + finalQuality;
+    console.log(`  Base Score: ${healthPoints.toFixed(4)} + ${finalQuality.toFixed(4)} = ${totalScore.toFixed(4)}`);
     
     // Apply AI Multiplier
+    console.log(`  AI Multiplier: ${aiMultiplier}x`);
     totalScore = totalScore * aiMultiplier;
+    console.log(`  After Multiplier: ${totalScore.toFixed(4)}`);
     
     // Cap at 100
-    totalScore = Math.min(Math.round(totalScore), 100);
+    const finalScore = Math.min(Math.round(totalScore), 100);
+    console.log(`  Final (rounded & capped): ${finalScore} / 100`);
+    console.log("\n=================================\n");
 
     return {
-        total: totalScore,
+        total: finalScore,
         health: { count: healthPoints, score: healthPoints },
         quality: { count: qualityPoints, score: finalQuality },
         details: {
             volume: volumeScore * 100,
-            acceptance: acceptancePoints, // Scaled to 35
+            acceptance: acceptancePoints,
             impact: impactPoints,
             issues: issuesPoints,
             commits: atomicityPoints
