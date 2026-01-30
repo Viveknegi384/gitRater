@@ -37,6 +37,10 @@ export interface UserProfile {
   publicRepos: number;
   totalStars: number;
   company: string | null;
+  location: string | null;
+  email: string | null;
+  blog: string | null;
+  twitterUsername: string | null;
   orgCount: number;
 }
 
