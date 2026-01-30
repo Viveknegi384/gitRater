@@ -16,11 +16,11 @@ export interface AuthRequest extends Request {
     user?: JwtPayload;
 }
 
-export const authenticateToken = (
+export const authenticateToken = async (
     req: AuthRequest,
     res: Response,
     next: NextFunction
-): void => {
+): Promise<void> => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
@@ -31,6 +31,18 @@ export const authenticateToken = (
 
     try {
         const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
+        
+        // Check if user still exists in database
+        const userExists = await import('../db').then(m => m.default.query(
+            'SELECT 1 FROM app_users WHERE id = $1',
+            [decoded.userId]
+        ));
+
+        if (userExists.rows.length === 0) {
+             res.status(401).json({ error: 'User no longer exists', code: 'USER_NOT_FOUND' });
+             return;
+        }
+
         req.user = decoded;
         next();
     } catch (error) {

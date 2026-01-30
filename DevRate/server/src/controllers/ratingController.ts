@@ -20,7 +20,7 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
     try {
         // Check if profile exists and when it was last updated
         const profileResult = await pool.query(
-            `SELECT username, name, avatar_url, bio, metrics, last_updated 
+            `SELECT username, name, avatar_url, bio, metrics, location, blog, twitter_username, company, email, last_updated 
              FROM github_profiles 
              WHERE username = $1`,
             [username]
@@ -66,11 +66,11 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
                             name: cachedProfile.name,
                             avatar_url: cachedProfile.avatar_url,
                             bio: cachedProfile.bio,
-                            location: null,
-                            email: null,
-                            blog: null,
-                            twitter_username: null,
-                            company: null,
+                            location: cachedProfile.location,
+                            email: cachedProfile.email,
+                            blog: cachedProfile.blog,
+                            twitter_username: cachedProfile.twitter_username,
+                            company: cachedProfile.company,
                             followers: cachedProfile.metrics?.followers || 0,
                             following: 0,
                             public_repos: cachedProfile.metrics?.public_repos || 0,
@@ -134,14 +134,19 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
         try {
             // Upsert GitHub profile
             await pool.query(
-                `INSERT INTO github_profiles (username, name, avatar_url, bio, metrics, last_updated)
-                 VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+                `INSERT INTO github_profiles (username, name, avatar_url, bio, metrics, location, blog, twitter_username, company, email, last_updated)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
                  ON CONFLICT (username) 
                  DO UPDATE SET 
                     name = EXCLUDED.name,
                     avatar_url = EXCLUDED.avatar_url,
                     bio = EXCLUDED.bio,
                     metrics = EXCLUDED.metrics,
+                    location = EXCLUDED.location,
+                    blog = EXCLUDED.blog,
+                    twitter_username = EXCLUDED.twitter_username,
+                    company = EXCLUDED.company,
+                    email = EXCLUDED.email,
                     last_updated = CURRENT_TIMESTAMP`,
                 [
                     profile.username,
@@ -153,7 +158,12 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
                         public_repos: profile.publicRepos,
                         total_commits: totalCommits,
                         total_stars: repos.reduce((sum, r) => sum + r.stars, 0)
-                    })
+                    }),
+                    profile.location,
+                    profile.blog,
+                    profile.twitterUsername,
+                    profile.company,
+                    profile.email
                 ]
             );
 
@@ -193,10 +203,10 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
                 name: profile.name,
                 avatar_url: profile.avatarUrl,
                 bio: profile.bio,
-                location: profile.company, // UserProfile doesn't have location, using company
-                email: null, // UserProfile doesn't have email
-                blog: null, // UserProfile doesn't have blog
-                twitter_username: null, // UserProfile doesn't have twitter_username
+                location: profile.location,
+                email: profile.email,
+                blog: profile.blog,
+                twitter_username: profile.twitterUsername,
                 company: profile.company,
                 followers: profile.followers,
                 following: 0, // UserProfile doesn't have following

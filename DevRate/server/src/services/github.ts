@@ -26,6 +26,10 @@ export const fetchUserProfile = async (username: string): Promise<UserProfile> =
     publicRepos: profile.public_repos,
     totalStars: 0, // Placeholder
     company: profile.company,
+    location: profile.location,
+    blog: profile.blog,
+    email: profile.email,
+    twitterUsername: profile.twitter_username,
     orgCount: orgs.length
   };
 };

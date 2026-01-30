@@ -11,7 +11,11 @@ async function applySchema() {
         await pool.query(schema);
         logger.info('Database schema applied successfully');
     } catch (error) {
-        logger.error('Error applying database schema:', error);
+        // Explicitly logging error message and stack for debugging
+        logger.error('Error applying database schema:', error instanceof Error ? error.message : JSON.stringify(error));
+        if (error instanceof Error) {
+            console.error(error.stack);
+        }
         throw error;
     }
 }
