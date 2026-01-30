@@ -27,27 +27,45 @@ export const analyzeProfile = async (
         
         **Developer**: ${username}
         
-        **Recent PR Activity (Sample)**:
-        ${prSummaries.slice(0, 3).join('\n---\n')}
+        **Pull Request Quality Analysis**:
+        ${prSummaries.join('\n\n---\n\n')}
         
-        **Recent Commit Logs (Sample)**:
+        **Commit Message Quality**:
         ${commitLogs.slice(0, 20).join('\n')}
         
-        **Task**:
-        1. Evaluate the "Engineering Quality Multiplier" (0.8 = Amateur/Spam, 1.0 = Average, 1.2 = Exceptional).
-        2. Assign a "Persona Title" (e.g., "The Architect", "The Bug Slayer", "The Spammer", "The Full-Stack Weaver").
-        3. Write a 2-sentence summary of their style.
-        4. **Commit Quality Score (0-15)**: Evaluate the commit messages. 
-           - Do they follow standards (Conventional Commits e.g. feat:, fix:)? 
-           - Are they atomic and descriptive?
-           - Or are they chaotic ("fix", "stuff", "update")?
-           - Return an integer from 0 to 15.
+        **Evaluation Criteria**:
+        
+        1. **Engineering Quality Multiplier (0.8 - 1.2)**:
+           - 1.2 = Exceptional: Large PRs with thorough reviews, addresses complex problems, significant impact
+           - 1.1 = Above Average: Well-reviewed PRs, clean code, good practices
+           - 1.0 = Average: Standard contributions, some reviews
+           - 0.9 = Below Average: Small changes, minimal review engagement
+           - 0.8 = Amateur: Trivial changes, poor quality
+        
+        2. **Commit Quality Score (0-15)**:
+           - 13-15: Excellent - Follows conventions (feat:, fix:), atomic, descriptive
+           - 10-12: Good - Mostly clear, some conventions
+           - 7-9: Average - Basic descriptions, inconsistent
+           - 4-6: Poor - Vague messages ("fix", "update")
+           - 0-3: Very Poor - Meaningless or spam
+        
+        3. **Persona**: Choose from:
+           - "The Architect" (designs systems)
+           - "The Bug Slayer" (fixes critical issues)
+           - "The Performance Wizard" (optimization expert)
+           - "The Full-Stack Virtuoso" (versatile contributor)
+           - "The Open Source Champion" (community builder)
+           - "The Code Reviewer" (thorough reviews)
+           - "The Feature Builder" (ships new features)
+           - "The Pragmatist" (gets things done)
+        
+        4. **Summary**: 2 sentences about coding style, PR quality, and impact.
         
         **Output JSON only**:
         {
             "multiplier": 1.05,
             "persona": "The Code Craftsperson",
-            "summary": "Writes clean, atomic commits but lacks impact in major repos.",
+            "summary": "Writes clean, well-reviewed PRs with thoughtful changes. Commits follow conventions and show attention to detail.",
             "commitScore": 12
         }
         `;
@@ -55,6 +73,28 @@ export const analyzeProfile = async (
         // logger is imported at top
         logger.info("Sending Prompt to AI", { model: "gemini-2.5-flash", username });
         logger.debug("AI Prompt Content", { promptShort: prompt.trim().replace(/\s+/g, ' ').substring(0, 70) });
+        
+        // Debug: Log what we're sending to AI
+        console.log("\n=== AI ANALYSIS DEBUG ===");
+        console.log(`\n📝 PRs with reviews (${prSummaries.length}):`);
+        if (prSummaries.length === 0) {
+            console.log("  ⚠️  NO PRS FOUND");
+        } else {
+            prSummaries.forEach((pr, i) => {
+                console.log(`\n--- PR ${i+1} ---`);
+                console.log(pr);
+            });
+        }
+        
+        console.log(`\n💬 Commit logs (${commitLogs.length}):`);
+        if (commitLogs.length === 0) {
+            console.log("  ⚠️  NO COMMITS FOUND");
+        } else {
+            commitLogs.forEach((commit, i) => {
+                console.log(`  ${i+1}. ${commit}`);
+            });
+        }
+        console.log("\n========================\n");
 
         const result = await model.generateContent(prompt);
         const response = result.response;

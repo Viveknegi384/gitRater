@@ -76,6 +76,10 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
                             public_repos: cachedProfile.metrics?.public_repos || 0,
                             total_commits: cachedProfile.metrics?.total_commits || 0,
                             total_stars: cachedProfile.metrics?.total_stars || 0,
+                            merged_prs: cachedProfile.metrics?.merged_prs || 0,
+                            pr_acceptance_rate: cachedProfile.metrics?.pr_acceptance_rate || 0,
+                            issues_closed: cachedProfile.metrics?.issues_closed || 0,
+                            language_breadth: cachedProfile.metrics?.language_breadth || 0,
                             developer_impact_score: rating.total_score,
                             tier: getTier(rating.total_score),
                             score_breakdown: {
@@ -108,14 +112,20 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
         ]);
 
         console.log(`Fetched ${repos.length} repos, ${totalCommits} total commits.`);
+        console.log(`DEBUG: Recent commits fetched: ${recentCommits.length}`);
+        console.log(`DEBUG: PRs fetched: ${prs.length} (merged: ${prs.filter(p => p.merged).length})`);
 
-        // 2. Prepare Data for AI
-        const prSummaries = prs.slice(0, 5).map(p => `PR #${p.number}: ${p.title} (Merged: ${p.merged})`);
+        // 2. Prepare Data for AI - Fetch detailed PR info with reviews
+        console.log("Fetching detailed PR information with reviews...");
+        const prDetailsWithReviews = await github.fetchPRDetailsForAI(prs);
+        console.log(`DEBUG: PR details prepared for AI: ${prDetailsWithReviews.length}`);
+        
         const commitLogs = recentCommits.slice(0, 20).map(c => `${c.date}: ${c.message}`);
+        console.log(`DEBUG: Commit logs prepared for AI: ${commitLogs.length}`);
 
         // 3. Run AI Analysis
-        console.log("Running AI Analysis...");
-        const aiResult = await ai.analyzeProfile(username, prSummaries, commitLogs);
+        console.log("Running AI Analysis with PR reviews and commit quality...");
+        const aiResult = await ai.analyzeProfile(username, prDetailsWithReviews, commitLogs);
 
         // 4. Calculate Score
         console.log("Calculating Score...");
@@ -130,7 +140,17 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
             aiResult.commitScore
         );
 
-        // 5. Save to database
+        // 5. Calculate additional metrics for frontend
+        const closedPRs = prs.filter(p => p.state === 'closed');
+        const mergedPRs = closedPRs.filter(p => p.merged);
+        const acceptanceRate = closedPRs.length > 0 ? (mergedPRs.length / closedPRs.length) * 100 : 0;
+        const issuesClosed = issues.filter(i => i.state === 'closed').length;
+        
+        // Calculate language breadth (unique languages from repos)
+        const uniqueLanguages = new Set(repos.map(r => r.language).filter(l => l));
+        const languageBreadth = uniqueLanguages.size;
+
+        // 6. Save to database
         try {
             // Upsert GitHub profile
             await pool.query(
@@ -157,7 +177,11 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
                         followers: profile.followers,
                         public_repos: profile.publicRepos,
                         total_commits: totalCommits,
-                        total_stars: repos.reduce((sum, r) => sum + r.stars, 0)
+                        total_stars: repos.reduce((sum, r) => sum + r.stars, 0),
+                        merged_prs: mergedPRs.length,
+                        pr_acceptance_rate: acceptanceRate,
+                        issues_closed: issuesClosed,
+                        language_breadth: languageBreadth
                     }),
                     profile.location,
                     profile.blog,
@@ -193,7 +217,7 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
             // Continue even if DB save fails
         }
 
-        // 6. Return Response
+        // 7. Return Response
         res.json({
             success: true,
             message: 'Profile rating calculated and saved successfully',
@@ -213,6 +237,10 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
                 public_repos: profile.publicRepos,
                 total_commits: totalCommits,
                 total_stars: repos.reduce((sum, r) => sum + r.stars, 0),
+                merged_prs: mergedPRs.length,
+                pr_acceptance_rate: acceptanceRate,
+                issues_closed: issuesClosed,
+                language_breadth: languageBreadth,
                 developer_impact_score: scoreBreakdown.total,
                 tier: getTier(scoreBreakdown.total),
                 score_breakdown: {
