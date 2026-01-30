@@ -111,24 +111,24 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
             github.fetchTotalCommits(username)
         ]);
 
-        console.log(`Fetched ${repos.length} repos, ${totalCommits} total commits.`);
-        console.log(`DEBUG: Recent commits fetched: ${recentCommits.length}`);
-        console.log(`DEBUG: PRs fetched: ${prs.length} (merged: ${prs.filter(p => p.merged).length})`);
+        logger.info(`Fetched ${repos.length} repos, ${totalCommits} total commits.`);
+        logger.debug(`Recent commits fetched: ${recentCommits.length}`);
+        logger.debug(`PRs fetched: ${prs.length} (merged: ${prs.filter(p => p.merged).length})`);
 
         // 2. Prepare Data for AI - Fetch detailed PR info with reviews
-        console.log("Fetching detailed PR information with reviews...");
+        logger.info("Fetching detailed PR information with reviews...");
         const prDetailsWithReviews = await github.fetchPRDetailsForAI(prs);
-        console.log(`DEBUG: PR details prepared for AI: ${prDetailsWithReviews.length}`);
+        logger.debug(`PR details prepared for AI: ${prDetailsWithReviews.length}`);
         
         const commitLogs = recentCommits.slice(0, 20).map(c => `${c.date}: ${c.message}`);
-        console.log(`DEBUG: Commit logs prepared for AI: ${commitLogs.length}`);
+        logger.debug(`Commit logs prepared for AI: ${commitLogs.length}`);
 
         // 3. Run AI Analysis
-        console.log("Running AI Analysis with PR reviews and commit quality...");
+        logger.info("Running AI Analysis with PR reviews and commit quality...");
         const aiResult = await ai.analyzeProfile(username, prDetailsWithReviews, commitLogs);
 
         // 4. Calculate Score
-        console.log("Calculating Score...");
+        logger.info("Calculating Score...");
         const scoreBreakdown = scoring.calculateScore(
             profile, 
             repos, 
@@ -241,7 +241,6 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
                 pr_acceptance_rate: acceptanceRate,
                 issues_closed: issuesClosed,
                 language_breadth: languageBreadth,
-                developer_impact_score: scoreBreakdown.total,
                 tier: getTier(scoreBreakdown.total),
                 score_breakdown: {
                     health_score: scoreBreakdown.health.score,
@@ -256,7 +255,7 @@ export const getRating = async (req: AuthRequest, res: Response): Promise<void> 
         });
 
     } catch (error: any) {
-        console.error('Error in getRating:', error);
+        logger.error('Error in getRating:', error);
         
         if (error.status === 403 || error.status === 429) {
             res.status(429).json({ 

@@ -1,4 +1,5 @@
 import { UserProfile, RepoStats, PRStats, IssueStats, CommitInfo } from '../types';
+import { logger } from '../utils/logger';
 
 export interface ScoreBreakdown {
     total: number;
@@ -34,90 +35,91 @@ export const calculateScore = (
     aiCommitScore: number
 ): ScoreBreakdown => {
 
-    console.log("\n=== SCORING CALCULATION DEBUG ===\n");
+    logger.debug("\n=== SCORING CALCULATION DEBUG ===\n");
 
     // --- A. Profile Health (20%) ---
-    console.log("📊 A. PROFILE HEALTH (Max 20 points)");
+    logger.debug("📊 A. PROFILE HEALTH (Max 20 points)");
     
     // 1. Followers (5pts)
+    // 1. Followers (5pts)
     const followerScore = logScale(profile.followers, 1000) * 0.05;
-    console.log(`  1. Followers: ${profile.followers}`);
-    console.log(`     Formula: logScale(${profile.followers}, 1000) × 0.05`);
-    console.log(`     Score: ${followerScore.toFixed(4)} / 5`);
+    logger.debug(`  1. Followers: ${profile.followers}`);
+    logger.debug(`     Formula: logScale(${profile.followers}, 1000) × 0.05`);
+    logger.debug(`     Score: ${followerScore.toFixed(4)} / 5`);
 
     // 2. Organization Count (5pts)
     const orgScore = Math.min(profile.orgCount, 5);
-    console.log(`  2. Organizations: ${profile.orgCount}`);
-    console.log(`     Formula: min(${profile.orgCount}, 5)`);
-    console.log(`     Score: ${orgScore.toFixed(4)} / 5`);
+    logger.debug(`  2. Organizations: ${profile.orgCount}`);
+    logger.debug(`     Formula: min(${profile.orgCount}, 5)`);
+    logger.debug(`     Score: ${orgScore.toFixed(4)} / 5`);
 
     // 3. Volume (10pts)
     const volumeScore = logScale(totalCommits, 10000) * 0.10;
-    console.log(`  3. Commit Volume: ${totalCommits}`);
-    console.log(`     Formula: logScale(${totalCommits}, 10000) × 0.10`);
-    console.log(`     Score: ${volumeScore.toFixed(4)} / 10`);
+    logger.debug(`  3. Commit Volume: ${totalCommits}`);
+    logger.debug(`     Formula: logScale(${totalCommits}, 10000) × 0.10`);
+    logger.debug(`     Score: ${volumeScore.toFixed(4)} / 10`);
     
     // Total Health Score (Sum of sub-scores, Max 20)
     const healthPoints = followerScore + orgScore + volumeScore;
-    console.log(`  ➜ HEALTH TOTAL: ${healthPoints.toFixed(4)} / 20\n`);
+    logger.debug(`  ➜ HEALTH TOTAL: ${healthPoints.toFixed(4)} / 20\n`);
     
     // --- B. Engineering Quality (80%) ---
-    console.log("⚙️  B. ENGINEERING QUALITY (Max 100 points, scaled to 80)");
+    logger.debug("⚙️  B. ENGINEERING QUALITY (Max 100 points, scaled to 80)");
     
     // 1. Acceptance Rate (35 points)
     const closedPRs = prs.filter(p => p.state === 'closed');
     const mergedPRs = closedPRs.filter(p => p.merged);
     const acceptanceRate = closedPRs.length > 0 ? (mergedPRs.length / closedPRs.length) : 0;
     const acceptancePoints = acceptanceRate * 35;
-    console.log(`  1. PR Acceptance Rate:`);
-    console.log(`     Closed PRs: ${closedPRs.length} | Merged: ${mergedPRs.length}`);
-    console.log(`     Rate: ${(acceptanceRate * 100).toFixed(2)}%`);
-    console.log(`     Formula: (${mergedPRs.length} / ${closedPRs.length}) × 35`);
-    console.log(`     Score: ${acceptancePoints.toFixed(4)} / 35`);
+    logger.debug(`  1. PR Acceptance Rate:`);
+    logger.debug(`     Closed PRs: ${closedPRs.length} | Merged: ${mergedPRs.length}`);
+    logger.debug(`     Rate: ${(acceptanceRate * 100).toFixed(2)}%`);
+    logger.debug(`     Formula: (${mergedPRs.length} / ${closedPRs.length}) × 35`);
+    logger.debug(`     Score: ${acceptancePoints.toFixed(4)} / 35`);
 
     // 2. Impact Score (35 points)
     const totalStars = repos.reduce((acc, r) => acc + r.stars, 0);
     const impactPoints = logScale(totalStars, 5000) * 0.35;
-    console.log(`  2. Impact (Stars):`);
-    console.log(`     Total Stars: ${totalStars} (from ${repos.length} repos)`);
-    console.log(`     Formula: logScale(${totalStars}, 5000) × 35`);
-    console.log(`     Score: ${impactPoints.toFixed(4)} / 35`);
+    logger.debug(`  2. Impact (Stars):`);
+    logger.debug(`     Total Stars: ${totalStars} (from ${repos.length} repos)`);
+    logger.debug(`     Formula: logScale(${totalStars}, 5000) × 35`);
+    logger.debug(`     Score: ${impactPoints.toFixed(4)} / 35`);
 
     // 3. Issues Solved (15 points)
     const closedIssues = issues.filter(i => i.state === 'closed').length;
     const issuesPoints = logScale(closedIssues, 50) * 0.15;
-    console.log(`  3. Issues Solved:`);
-    console.log(`     Closed Issues: ${closedIssues}`);
-    console.log(`     Formula: logScale(${closedIssues}, 50) × 15`);
-    console.log(`     Score: ${issuesPoints.toFixed(4)} / 15`);
+    logger.debug(`  3. Issues Solved:`);
+    logger.debug(`     Closed Issues: ${closedIssues}`);
+    logger.debug(`     Formula: logScale(${closedIssues}, 50) × 15`);
+    logger.debug(`     Score: ${issuesPoints.toFixed(4)} / 15`);
 
     // 4. Commit Quality (15 points) - AI ANALYZED
     const atomicityPoints = aiCommitScore;
-    console.log(`  4. Commit Quality (AI):`);
-    console.log(`     AI Commit Score: ${aiCommitScore}`);
-    console.log(`     Score: ${atomicityPoints.toFixed(4)} / 15`);
+    logger.debug(`  4. Commit Quality (AI):`);
+    logger.debug(`     AI Commit Score: ${aiCommitScore}`);
+    logger.debug(`     Score: ${atomicityPoints.toFixed(4)} / 15`);
     
     // Total Engineering Score
     const qualityPoints = acceptancePoints + impactPoints + issuesPoints + atomicityPoints;
-    console.log(`  ➜ QUALITY SUBTOTAL: ${qualityPoints.toFixed(4)} / 100`);
+    logger.debug(`  ➜ QUALITY SUBTOTAL: ${qualityPoints.toFixed(4)} / 100`);
     
     const finalQuality = qualityPoints * 0.8;
-    console.log(`  ➜ QUALITY SCALED (×0.8): ${finalQuality.toFixed(4)} / 80\n`);
+    logger.debug(`  ➜ QUALITY SCALED (×0.8): ${finalQuality.toFixed(4)} / 80\n`);
 
     // --- Final Calculation ---
-    console.log("🎯 FINAL CALCULATION:");
+    logger.debug("🎯 FINAL CALCULATION:");
     let totalScore = healthPoints + finalQuality;
-    console.log(`  Base Score: ${healthPoints.toFixed(4)} + ${finalQuality.toFixed(4)} = ${totalScore.toFixed(4)}`);
+    logger.debug(`  Base Score: ${healthPoints.toFixed(4)} + ${finalQuality.toFixed(4)} = ${totalScore.toFixed(4)}`);
     
     // Apply AI Multiplier
-    console.log(`  AI Multiplier: ${aiMultiplier}x`);
+    logger.debug(`  AI Multiplier: ${aiMultiplier}x`);
     totalScore = totalScore * aiMultiplier;
-    console.log(`  After Multiplier: ${totalScore.toFixed(4)}`);
+    logger.debug(`  After Multiplier: ${totalScore.toFixed(4)}`);
     
     // Cap at 100
     const finalScore = Math.min(Math.round(totalScore), 100);
-    console.log(`  Final (rounded & capped): ${finalScore} / 100`);
-    console.log("\n=================================\n");
+    logger.debug(`  Final (rounded & capped): ${finalScore} / 100`);
+    logger.debug("\n=================================\n");
 
     return {
         total: finalScore,

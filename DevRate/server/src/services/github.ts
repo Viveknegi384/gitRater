@@ -91,7 +91,7 @@ export const fetchPRDetailsForAI = async (prs: PRStats[]): Promise<string[]> => 
       // Extract owner and repo from repoName
       const [owner, repo] = pr.repoName.split('/');
       
-      console.log(`Fetching details for PR #${pr.number} in ${pr.repoName}...`);
+      logger.debug(`Fetching details for PR #${pr.number} in ${pr.repoName}...`);
       
       // Fetch PR details
       const { data: prData } = await octokit.rest.pulls.get({
@@ -107,7 +107,7 @@ export const fetchPRDetailsForAI = async (prs: PRStats[]): Promise<string[]> => 
         pull_number: pr.number
       });
       
-      console.log(`  Reviews found: ${reviews.length}`);
+      logger.debug(`  Reviews found: ${reviews.length}`);
       
       // Fetch review comments
       const { data: comments } = await octokit.rest.pulls.listReviewComments({
@@ -116,7 +116,7 @@ export const fetchPRDetailsForAI = async (prs: PRStats[]): Promise<string[]> => 
         pull_number: pr.number
       });
       
-      console.log(`  Review comments found: ${comments.length}`);
+      logger.debug(`  Review comments found: ${comments.length}`);
       
       let prSummary = `PR #${pr.number}: ${pr.title}\n`;
       prSummary += `Repo: ${pr.repoName} | Status: MERGED\n`;
@@ -182,9 +182,9 @@ export const fetchRecentCommits = async (username: string): Promise<CommitInfo[]
         per_page: 50
     });
 
-    console.log(`DEBUG: Total events fetched: ${events.length}`);
+    logger.debug(`Total events fetched: ${events.length}`);
     const pushEvents = events.filter((e: any) => e.type === 'PushEvent');
-    console.log(`DEBUG: Push events found: ${pushEvents.length}`);
+    logger.debug(`Push events found: ${pushEvents.length}`);
 
     const commits: CommitInfo[] = [];
 
@@ -200,7 +200,7 @@ export const fetchRecentCommits = async (username: string): Promise<CommitInfo[]
         }
     });
     
-    console.log(`DEBUG: Commits from events: ${commits.length}`);
+    logger.debug(`Commits from events: ${commits.length}`);
     
     // If we have enough commits from events, return them
     if (commits.length >= 20) {
@@ -208,7 +208,7 @@ export const fetchRecentCommits = async (username: string): Promise<CommitInfo[]
     }
     
     // Otherwise, fetch from repositories directly
-    console.log(`DEBUG: Not enough commits from events, fetching from repos...`);
+    logger.debug(`Not enough commits from events, fetching from repos...`);
     
     try {
         // Get user's repositories
@@ -219,7 +219,7 @@ export const fetchRecentCommits = async (username: string): Promise<CommitInfo[]
             type: 'owner'
         });
         
-        console.log(`DEBUG: Fetching commits from ${repos.length} repos...`);
+        logger.debug(`Fetching commits from ${repos.length} repos...`);
         
         // Fetch commits from each repo
         for (const repo of repos) {
@@ -244,13 +244,13 @@ export const fetchRecentCommits = async (username: string): Promise<CommitInfo[]
                 });
             } catch (error) {
                 // Skip repos we can't access
-                console.log(`DEBUG: Couldn't fetch commits from ${repo.name}`);
+                logger.debug(`Couldn't fetch commits from ${repo.name}`);
             }
         }
         
-        console.log(`DEBUG: Total commits collected: ${commits.length}`);
+        logger.debug(`Total commits collected: ${commits.length}`);
     } catch (error) {
-        console.warn(`Failed to fetch commits from repos: ${error}`);
+        logger.warn(`Failed to fetch commits from repos: ${error}`);
     }
 
     return commits;
@@ -264,7 +264,7 @@ export const fetchTotalCommits = async (username: string): Promise<number> => {
         });
         return data.total_count;
     } catch (error) {
-        console.warn("Failed to fetch total commits (Search API limit?), defaulting to 0");
+        logger.warn("Failed to fetch total commits (Search API limit?), defaulting to 0");
         return 0;
     }
 };

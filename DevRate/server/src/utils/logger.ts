@@ -1,65 +1,56 @@
-import fs from 'fs';
+import winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
 import path from 'path';
+import fs from 'fs';
 
-class Logger {
-    private logFile: string;
+const logsDir = path.join(__dirname, '../../logs');
 
-    constructor() {
-        const logsDir = path.join(__dirname, '../../logs');
-        if (!fs.existsSync(logsDir)) {
-            fs.mkdirSync(logsDir, { recursive: true });
-        }
-        this.logFile = path.join(logsDir, 'app.log');
-    }
-
-    private timestamp(): string {
-        const now = new Date();
-        // Format: YYYY-MM-DD HH:mm:ss
-        return now.toISOString().replace('T', ' ').split('.')[0];
-    }
-
-    private formatMessage(level: string, message: string, meta?: any): string {
-        let logMsg = `${this.timestamp()} [${level}] ${message}`;
-        if (meta) {
-            let metaStr = '';
-            if (typeof meta === 'object' && meta !== null) {
-                // Convert { key: "value" } to "key="value"" or just value if simple
-                metaStr = Object.entries(meta)
-                    .map(([k, v]) => `${k}="${v}"`)
-                    .join(' ');
-            } else {
-                metaStr = String(meta);
-            }
-            logMsg += ` | ${metaStr}`;
-        }
-        return logMsg;
-    }
-
-    private write(level: string, message: string, meta?: any) {
-        const logMsg = this.formatMessage(level, message, meta);
-        
-        // Console Output
-        console.log(logMsg);
-
-        // File Output
-        fs.appendFileSync(this.logFile, logMsg + '\n');
-    }
-
-    public info(message: string, meta?: any) {
-        this.write('INFO', message, meta);
-    }
-
-    public warn(message: string, meta?: any) {
-        this.write('WARN', message, meta);
-    }
-
-    public error(message: string, meta?: any) {
-        this.write('ERROR', message, meta);
-    }
-
-    public debug(message: string, meta?: any) {
-        this.write('DEBUG', message, meta);
-    }
+// Ensure log directory exists
+if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
 }
 
-export const logger = new Logger();
+const { combine, timestamp, printf, colorize } = winston.format;
+
+// Custom log format
+const logFormat = printf(({ level, message, timestamp, ...meta }) => {
+    let logMsg = `${timestamp} [${level}]: ${message}`;
+    if (Object.keys(meta).length > 0) {
+        logMsg += ` | ${JSON.stringify(meta)}`;
+    }
+    return logMsg;
+});
+
+const fileRotateTransport = new DailyRotateFile({
+    filename: path.join(logsDir, 'application-%DATE%.log'),
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '20m',
+    maxFiles: '14d',
+    level: 'debug', // Explicitly allow debug for files
+    format: combine(
+        timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        logFormat
+    ),
+});
+
+const consoleTransport = new winston.transports.Console({
+    level: 'info', // Keep console clean, only show info and above
+    format: combine(
+        colorize(),
+        timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        logFormat
+    ),
+});
+
+export const logger = winston.createLogger({
+    level: 'debug', // Allow debug logs to flow through
+    transports: [
+        fileRotateTransport,
+        consoleTransport,
+    ],
+});
+
+// Wrapper class to maintain backward compatibility if needed, but direct export is cleaner.
+// We'll keep the direct export and ensure usage matches.
+// Winston's logger has .info, .error, .warn, .debug methods just like the old class.
