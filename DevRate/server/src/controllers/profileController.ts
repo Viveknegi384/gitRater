@@ -14,9 +14,18 @@ export const getUserProfiles = async (req: AuthRequest, res: Response): Promise<
         }
 
         const result = await pool.query(
-            `SELECT sh.id, sh.searched_profile, sh.searched_at, gp.name, gp.avatar_url
+            `SELECT sh.id, sh.searched_profile, sh.searched_at, 
+                    gp.name, gp.avatar_url, gp.bio, gp.location, gp.company, gp.blog, gp.twitter_username, gp.email, gp.metrics,
+                    r.total_score, r.health_score, r.quality_score, r.ai_analysis
              FROM search_history sh
              LEFT JOIN github_profiles gp ON sh.searched_profile = gp.username
+             LEFT JOIN LATERAL (
+                SELECT total_score, health_score, quality_score, ai_analysis
+                FROM ratings 
+                WHERE ratings.username = gp.username 
+                ORDER BY created_at DESC 
+                LIMIT 1
+             ) r ON true
              WHERE sh.user_id = $1 
              ORDER BY sh.searched_at DESC`,
             [userId]

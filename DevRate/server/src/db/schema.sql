@@ -17,6 +17,11 @@ CREATE TABLE IF NOT EXISTS github_profiles (
     avatar_url TEXT,
     bio TEXT,
     metrics JSONB, -- Stores { activeRepos, followers, etc. }
+    location VARCHAR(255),
+    blog VARCHAR(255),
+    twitter_username VARCHAR(255),
+    company VARCHAR(255),
+    email VARCHAR(255),
     last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
