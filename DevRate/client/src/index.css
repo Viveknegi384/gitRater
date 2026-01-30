@@ -4,7 +4,15 @@
 
 @layer base {
   body {
-    @apply bg-slate-950 text-slate-50;
+    @apply bg-gray-50 dark:bg-slate-950 text-gray-900 dark:text-slate-50 transition-colors;
+  }
+
+  html.light {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
   }
 }
 

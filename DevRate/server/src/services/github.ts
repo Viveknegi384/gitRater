@@ -56,10 +56,10 @@ export const fetchUserRepos = async (username: string): Promise<RepoStats[]> => 
 
 export const fetchRecentPRs = async (username: string): Promise<PRStats[]> => {
   // Search API is better for finding PRs across *any* repo (even ones they don't own)
-  const query = `author:${username} type:pr is:public created:>${getOneYearAgoDate()}`;
+  const query = `author:${username} type:pr is:public`;
   const { data } = await octokit.rest.search.issuesAndPullRequests({
     q: query,
-    per_page: 100, // Top 100 recent PRs
+    per_page: 100, // Top 100 PRs (all time)
   });
 
   return data.items.map((item: any) => ({
@@ -83,10 +83,10 @@ export const fetchResolvedIssues = async (username: string): Promise<IssueStats[
    // We want issues they *closed*? Hard to track via API directly without events.
    // Proxy: Issues assigned to them that are closed? Or Issues they authored that are closed?
    // Let's go with: Issues they were assigned to and are closed.
-   const query = `assignee:${username} type:issue state:closed is:public created:>${getOneYearAgoDate()}`;
+   const query = `assignee:${username} type:issue state:closed is:public`;
    const { data } = await octokit.rest.search.issuesAndPullRequests({
      q: query,
-     per_page: 50,
+     per_page: 50, // Top 50 closed issues (all time)
    });
 
    return data.items.map((item: any) => ({
