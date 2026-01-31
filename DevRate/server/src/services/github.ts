@@ -71,17 +71,31 @@ export const fetchRecentPRs = async (username: string): Promise<PRStats[]> => {
     mergedAt: item.pull_request?.merged_at || null,
     createdAt: item.created_at,
     repoName: extractRepoName(item.repository_url),
-    additions: 0, // Search API doesn't give diff size. We might need detailed fetch if critical.
-    deletions: 0
+    additions: 0, 
+    deletions: 0,
+    comments: item.comments || 0 // Capture comment count from Search API result
   }));
 };
 
 // Fetch detailed PR information with reviews for AI analysis
 export const fetchPRDetailsForAI = async (prs: PRStats[]): Promise<string[]> => {
-  // Get top 5 merged PRs for analysis
+  // Get top 5 "Best" merged PRs for analysis
+  // Logic: Prioritize engagement (comments) then recency
   const topPRs = prs
     .filter(pr => pr.merged)
-    .sort((a, b) => new Date(b.mergedAt || 0).getTime() - new Date(a.mergedAt || 0).getTime())
+    .sort((a, b) => {
+        // Weighted Score: (Comments * 5) + Recency Factor
+        // We want highly discussed PRs to bubble up even if they are slightly older
+        const scoreA = (a.comments * 5);
+        const scoreB = (b.comments * 5);
+        
+        if (scoreA !== scoreB) {
+            return scoreB - scoreA; // Descending by score
+        }
+        
+        // Tie-breaker: Recency
+        return new Date(b.mergedAt || 0).getTime() - new Date(a.mergedAt || 0).getTime();
+    })
     .slice(0, 5);
   
   const prDetails: string[] = [];
