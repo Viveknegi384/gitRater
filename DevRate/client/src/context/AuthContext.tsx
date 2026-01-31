@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 
 interface User {
@@ -41,11 +41,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         headers: { Authorization: `Bearer ${authToken}` },
       });
       setUser(response.data);
-    } catch (error) {
-      console.error('Failed to fetch profile:', error);
-      logout();
-    } finally {
       setLoading(false);
+    } catch (error: any) {
+      console.error('Failed to fetch profile:', error);
+      // Only logout if it's an authentication error (401), not network errors
+      if (error.response?.status === 401) {
+        console.log('Token invalid, logging out');
+        logout();
+      } else {
+        // Keep the user logged in for other errors (network issues, etc.)
+        console.log('Network or server error, keeping user logged in');
+        setLoading(false);
+      }
     }
   };
 
