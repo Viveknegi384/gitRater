@@ -48,13 +48,19 @@ export const deleteProfile = async (req: AuthRequest, res: Response): Promise<vo
             return;
         }
 
+        // DELETE from github_profiles will CASCADE to:
+        // 1. ratings (ON DELETE CASCADE)
+        // 2. search_history (ON DELETE CASCADE)
+        // This effectively wipes the user from the entire system.
         const result = await pool.query(
-            'DELETE FROM search_history WHERE user_id = $1 AND searched_profile = $2 RETURNING *',
-            [userId, username]
+            'DELETE FROM github_profiles WHERE username = $1 RETURNING *',
+            [username]
         );
 
-        if (result.rows.length === 0) {
-            res.status(404).json({ error: "Profile not found in search history" });
+        if (result.rowCount === 0) {
+            // It's possible the user wasn't in github_profiles but was in search_history (unlikely due to FK constraints)
+            // or simply doesn't exist.
+            res.status(404).json({ error: "Profile not found" });
             return;
         }
 

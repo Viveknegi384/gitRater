@@ -18,6 +18,7 @@ export interface PRStats {
   repoName: string;
   additions: number;
   deletions: number;
+  comments: number; // Add comments count for engagement tracking
 }
 
 export interface IssueStats {
@@ -55,4 +56,6 @@ export interface AIResult {
     persona: string;
     summary: string;
     commitScore: number;
+    job_fit_score?: number;
+    match_reason?: string;
 }

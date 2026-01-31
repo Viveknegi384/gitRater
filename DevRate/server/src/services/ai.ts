@@ -10,13 +10,22 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 export const analyzeProfile = async (
     username: string, 
     prSummaries: string[], 
-    commitLogs: string[]
+    commitLogs: string[],
+    jobDescription?: string
 ): Promise<AIResult> => {
-    logger.info(`Starting AI Analysis`, { username, prCount: prSummaries.length, commitCount: commitLogs.length });
+    logger.info(`Starting AI Analysis`, { username, prCount: prSummaries.length, commitCount: commitLogs.length, hasJD: !!jobDescription });
     
     if (!process.env.GEMINI_API_KEY) {
-        console.warn("No GEMINI_API_KEY found. Returning default neutral score.");
-        return { multiplier: 1.0, persona: "The Unknown Dev", summary: "AI Analysis unavailable.", commitScore: 10 };
+        logger.warn("No GEMINI_API_KEY found. Returning default neutral score.");
+        const fallback: AIResult = { 
+            multiplier: 1.0, 
+            persona: "The Unknown Dev", 
+            summary: "AI Analysis unavailable.", 
+            commitScore: 10,
+            job_fit_score: jobDescription ? 0 : undefined,
+            match_reason: jobDescription ? "AI unavailable" : undefined
+        };
+        return fallback;
     }
 
     try {
@@ -64,8 +73,8 @@ export const analyzeProfile = async (
         **Output JSON only**:
         {
             "multiplier": 1.05,
-            "persona": "The Code Craftsperson",
-            "summary": "Writes clean, well-reviewed PRs with thoughtful changes. Commits follow conventions and show attention to detail.",
+            "persona": "string",
+            "summary": "string",
             "commitScore": 12
         }
         `;
@@ -75,27 +84,22 @@ export const analyzeProfile = async (
         logger.debug("AI Prompt Content", { promptShort: prompt.trim().replace(/\s+/g, ' ').substring(0, 70) });
         
         // Debug: Log what we're sending to AI
-        console.log("\n=== AI ANALYSIS DEBUG ===");
-        console.log(`\n📝 PRs with reviews (${prSummaries.length}):`);
+        logger.debug(`\n📝 PRs with reviews (${prSummaries.length}):`);
         if (prSummaries.length === 0) {
-            console.log("  ⚠️  NO PRS FOUND");
+            logger.debug("  ⚠️  NO PRS FOUND");
         } else {
             prSummaries.forEach((pr, i) => {
-                console.log(`\n--- PR ${i+1} ---`);
-                console.log(pr);
+                logger.debug(`\n--- PR ${i+1} --- ${pr.substring(0, 100)}...`);
             });
         }
         
-        console.log(`\n💬 Commit logs (${commitLogs.length}):`);
+        logger.debug(`\n💬 Commit logs (${commitLogs.length}):`);
         if (commitLogs.length === 0) {
-            console.log("  ⚠️  NO COMMITS FOUND");
+            logger.debug("  ⚠️  NO COMMITS FOUND");
         } else {
-            commitLogs.forEach((commit, i) => {
-                console.log(`  ${i+1}. ${commit}`);
-            });
+            logger.debug(`  First commit: ${commitLogs[0]}`);
         }
-        console.log("\n========================\n");
-
+        
         const result = await model.generateContent(prompt);
         const response = result.response;
         const text = response.text();
@@ -104,8 +108,16 @@ export const analyzeProfile = async (
         
         // Clean JSON formatting (Gemini sometimes adds backticks)
         const cleanText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const json = JSON.parse(cleanText);
         
-        return JSON.parse(cleanText) as AIResult;
+        return {
+            multiplier: json.multiplier || 1.0,
+            persona: json.persona || "Unknown Developer",
+            summary: json.summary || "No summary available.",
+            commitScore: json.commitScore || 50,
+            job_fit_score: json.job_fit_score,
+            match_reason: json.match_reason
+        };
 
     } catch (error: any) {
         if (error?.message?.includes('API_KEY')) {
@@ -120,8 +132,10 @@ export const analyzeProfile = async (
         return { 
             multiplier: 1.0, 
             persona: "The Pragmatist", 
-            summary: "AI Analysis unavailable (Service Offline).", 
-            commitScore: 10 // Neutral score
+            summary: "AI Analysis unavailable (Service Error).", 
+            commitScore: 10,
+            job_fit_score: jobDescription ? 0 : undefined,
+            match_reason: jobDescription ? "Analysis failed" : undefined
         };
     }
 };

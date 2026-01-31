@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Search from './pages/Search';
+import BulkRate from './pages/BulkRate';
 
 function App() {
   return (
@@ -28,6 +29,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Search />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bulk"
+              element={
+                <ProtectedRoute>
+                  <BulkRate />
                 </ProtectedRoute>
               }
             />
