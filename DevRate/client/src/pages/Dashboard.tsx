@@ -37,7 +37,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedTier, setSelectedTier] = useState<string>('All');
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
@@ -48,7 +48,9 @@ export default function Dashboard() {
   const fetchDashboard = async () => {
     try {
       const response = await axios.get<SearchedProfile[]>('/api/profiles');
-      setProfiles(response.data);
+      // Sort profiles by total_score in descending order
+      const sortedProfiles = response.data.sort((a, b) => b.total_score - a.total_score);
+      setProfiles(sortedProfiles);
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to load dashboard');
     } finally {
