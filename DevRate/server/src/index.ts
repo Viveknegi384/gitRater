@@ -5,7 +5,7 @@ import { validateEnvironment, config } from './config/env';
 import routes from './routes';
 import { logger } from './utils/logger';
 
-// Validate environment variables before starting
+
 try {
     validateEnvironment();
 } catch (error) {
@@ -25,7 +25,7 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
+    max: 100, 
     message: 'Too many requests from this IP, please try again later.',
     standardHeaders: true,
     legacyHeaders: false,
@@ -33,21 +33,21 @@ const limiter = rateLimit({
 
 app.use(express.json());
 
-// Request logger
+
 app.use((req, res, next) => {
     logger.info(`${req.method} ${req.path}`);
     next();
 });
 
-// Routes with rate limiting
+
 app.use('/api', limiter, routes);
 
-// Health check
+
 app.get('/', (req, res) => {
     res.json({ message: 'DevRate API is running 🚀' });
 });
 
-// Start server
+
 app.listen(PORT, () => {
     logger.info(`Server running on http://localhost:${PORT}`);
 

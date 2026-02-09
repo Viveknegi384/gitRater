@@ -56,7 +56,7 @@ export const getOrCalculateRating = async (username: string, userId?: string, jo
     // Profile doesn't exist or is older than 24 hours - fetch fresh data from GitHub
     logger.info(`Fetching fresh data for ${username} from GitHub...`);
     
-    // 1. Fetch Data in Parallel
+
     const [profile, repos, prs, issues, recentCommits, totalCommits] = await Promise.all([
         github.fetchUserProfile(username),
         github.fetchUserRepos(username),
@@ -70,10 +70,22 @@ export const getOrCalculateRating = async (username: string, userId?: string, jo
     logger.debug(`Recent commits fetched: ${recentCommits.length}`);
     logger.debug(`PRs fetched: ${prs.length} (merged: ${prs.filter(p => p.merged).length})`);
 
-    // 2. Prepare Data for AI - Fetch detailed PR info with reviews
+    
     logger.info("Fetching detailed PR information with reviews...");
     const prDetailsWithReviews = await github.fetchPRDetailsForAI(prs);
     logger.debug(`PR details prepared for AI: ${prDetailsWithReviews.length}`);
+    
+    
+    logger.info("=== PR DESCRIPTIONS FOR AI ANALYSIS ===");
+    if (prDetailsWithReviews.length === 0) {
+        logger.warn("No PRs found for analysis");
+    } else {
+        prDetailsWithReviews.forEach((prDetail, index) => {
+            logger.info(`--- PR ${index + 1} ---`);
+            logger.info(prDetail);
+        });
+    }
+    logger.info("=======================================");
     
     const commitLogs = recentCommits.slice(0, 20).map(c => `${c.date}: ${c.message}`);
     logger.debug(`Commit logs prepared for AI: ${commitLogs.length}`);
@@ -231,6 +243,7 @@ function formatResponse(profile: any, rating: any, aiAnalysis: any) {
         pr_acceptance_rate: profile.metrics?.pr_acceptance_rate || 0,
         issues_closed: profile.metrics?.issues_closed || 0,
         language_breadth: profile.metrics?.language_breadth || 0,
+        developer_impact_score: rating.total_score,
         tier: getTier(rating.total_score),
         score_breakdown: {
             health_score: rating.health_score,

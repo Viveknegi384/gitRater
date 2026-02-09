@@ -31,6 +31,43 @@ export const analyzeProfile = async (
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         
+        const jobAnalysisSection = jobDescription ? `
+        
+        **JOB DESCRIPTION FOR MATCHING**:
+        ${jobDescription}
+        
+        **Job Fit Analysis Requirements**:
+        - Analyze if the developer's skills, experience, and project work align with this job description
+        - Consider: languages used, frameworks, project complexity, domain experience, and collaboration style
+        - Provide a job_fit_score (0-100): 
+          * 90-100 = Perfect match - Strong evidence of all required skills
+          * 75-89 = Excellent match - Most required skills demonstrated
+          * 60-74 = Good match - Core skills present, some gaps
+          * 40-59 = Partial match - Some relevant experience
+          * 0-39 = Poor match - Minimal alignment
+        - Provide a match_reason (1-2 sentences explaining why they match or don't match)
+        ` : '';
+        
+        const outputFormat = jobDescription ? `
+        **Output JSON only**:
+        {
+            "multiplier": 1.05,
+            "persona": "string",
+            "summary": "string",
+            "commitScore": 12,
+            "job_fit_score": 85,
+            "match_reason": "string explaining the match"
+        }
+        ` : `
+        **Output JSON only**:
+        {
+            "multiplier": 1.05,
+            "persona": "string",
+            "summary": "string",
+            "commitScore": 12
+        }
+        `;
+        
         const prompt = `
         You are a Senior Engineering Manager evaluating a developer profile.
         
@@ -41,6 +78,7 @@ export const analyzeProfile = async (
         
         **Commit Message Quality**:
         ${commitLogs.slice(0, 20).join('\n')}
+        ${jobAnalysisSection}
         
         **Evaluation Criteria**:
         
@@ -69,14 +107,7 @@ export const analyzeProfile = async (
            - "The Pragmatist" (gets things done)
         
         4. **Summary**: 2 sentences about coding style, PR quality, and impact.
-        
-        **Output JSON only**:
-        {
-            "multiplier": 1.05,
-            "persona": "string",
-            "summary": "string",
-            "commitScore": 12
-        }
+        ${outputFormat}
         `;
 
         // logger is imported at top

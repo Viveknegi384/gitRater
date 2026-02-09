@@ -46,8 +46,35 @@ CREATE TABLE IF NOT EXISTS search_history (
     CONSTRAINT unique_user_profile UNIQUE(user_id, searched_profile)
 );
 
+-- 5. Bulk Analysis Sessions
+CREATE TABLE IF NOT EXISTS bulk_analysis_sessions (
+    id SERIAL PRIMARY KEY,
+    user_id UUID REFERENCES app_users(id) ON DELETE CASCADE,
+    session_name VARCHAR(255) NOT NULL,
+    total_profiles INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Bulk Analysis Profiles
+CREATE TABLE IF NOT EXISTS bulk_analysis_profiles (
+    id SERIAL PRIMARY KEY,
+    session_id INTEGER REFERENCES bulk_analysis_sessions(id) ON DELETE CASCADE,
+    candidate_name VARCHAR(255),
+    github_url TEXT,
+    github_username VARCHAR(255),
+    devrate_tier VARCHAR(50),
+    quality_score NUMERIC(5, 2),
+    job_fit_score INTEGER,
+    match_reason TEXT,
+    error_message TEXT,
+    profile_data JSONB, -- Store complete row data from excel
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_ratings_username ON ratings(username);
 CREATE INDEX IF NOT EXISTS idx_history_user_id ON search_history(user_id);
 CREATE INDEX IF NOT EXISTS idx_ratings_created_at ON ratings(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_search_history_user_profile ON search_history(user_id, searched_profile);
+CREATE INDEX IF NOT EXISTS idx_bulk_sessions_user_id ON bulk_analysis_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_bulk_profiles_session_id ON bulk_analysis_profiles(session_id);

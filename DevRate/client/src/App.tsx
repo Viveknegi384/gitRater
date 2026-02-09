@@ -7,6 +7,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Search from './pages/Search';
 import BulkRate from './pages/BulkRate';
+import BulkHistory from './pages/BulkHistory';
 
 function App() {
   return (
@@ -37,6 +38,14 @@ function App() {
               element={
                 <ProtectedRoute>
                   <BulkRate />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/bulk-history"
+              element={
+                <ProtectedRoute>
+                  <BulkHistory />
                 </ProtectedRoute>
               }
             />

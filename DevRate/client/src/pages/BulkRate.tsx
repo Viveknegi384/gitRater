@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface BulkResult {
     ID?: string | number;
@@ -15,7 +16,9 @@ interface BulkResult {
 
 const BulkRate: React.FC = () => {
     const { token } = useAuth();
+    const navigate = useNavigate();
     const [file, setFile] = useState<File | null>(null);
+    const [sessionName, setSessionName] = useState('');
     const [jobDescription, setJobDescription] = useState('');
     const [results, setResults] = useState<BulkResult[]>([]);
     const [loading, setLoading] = useState(false);
@@ -34,12 +37,18 @@ const BulkRate: React.FC = () => {
             return;
         }
 
+        if (!sessionName.trim()) {
+            setError('Please enter a session name.');
+            return;
+        }
+
         setLoading(true);
         setError('');
         setResults([]);
 
         const formData = new FormData();
         formData.append('file', file);
+        formData.append('sessionName', sessionName);
         if (jobDescription) {
             formData.append('jobDescription', jobDescription);
         }
@@ -73,10 +82,41 @@ const BulkRate: React.FC = () => {
 
     return (
         <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-white">Bulk Profile Rating</h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Bulk Profile Rating</h1>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                    >
+                        ← Dashboard
+                    </button>
+                    <button
+                        onClick={() => navigate('/bulk-history')}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                    >
+                        View History
+                    </button>
+                </div>
+            </div>
             
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
                 <form onSubmit={handleSubmit} className="space-y-6">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Session Name *
+                        </label>
+                        <input
+                            type="text"
+                            value={sessionName}
+                            onChange={(e) => setSessionName(e.target.value)}
+                            placeholder="e.g., Frontend Engineers Q1 2026"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            required
+                        />
+                        <p className="mt-1 text-xs text-gray-500">Give this analysis a memorable name to find it later</p>
+                    </div>
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                             Upload Excel File (.xlsx)
