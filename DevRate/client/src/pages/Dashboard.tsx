@@ -143,6 +143,14 @@ export default function Dashboard() {
               >
                 Bulk Rate
               </Link>
+
+              <Link
+                to="/bulk-history"
+                className="px-6 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors"
+              >
+                Bulk History
+              </Link>
+              
               <button
                 onClick={handleLogout}
                 className="px-6 py-2 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
