@@ -252,7 +252,9 @@ function formatResponse(profile: any, rating: any, aiAnalysis: any) {
         },
         ai_analysis: {
             summary: aiAnalysis?.summary || '',
-            persona: aiAnalysis?.persona || ''
+            persona: aiAnalysis?.persona || '',
+            job_fit_score: aiAnalysis?.job_fit_score,
+            match_reason: aiAnalysis?.match_reason
         }
     };
 }

@@ -248,8 +248,10 @@ const BulkHistory: React.FC = () => {
                                             </span>
                                         ) : '-'}
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate" title={profile.match_reason}>
-                                        {profile.match_reason || '-'}
+                                    <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-md">
+                                        <div className="whitespace-normal break-words">
+                                            {profile.match_reason || '-'}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
