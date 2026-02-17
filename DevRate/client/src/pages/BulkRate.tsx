@@ -223,8 +223,10 @@ const BulkRate: React.FC = () => {
                                                     </div>
                                                 ) : '-'}
                                             </td>
-                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-xs truncate" title={row.match_reason}>
-                                                {row.match_reason || '-'}
+                                            <td className="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 max-w-md">
+                                                <div className="whitespace-normal break-words">
+                                                    {row.match_reason || '-'}
+                                                </div>
                                             </td>
                                         </>
                                     )}
